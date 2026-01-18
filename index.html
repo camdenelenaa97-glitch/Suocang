@@ -3,266 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>质押 & 分红 (BSC)</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text x=%220%22 y=%2290%22 font-size=%2290%22>🤑</text></svg>" type="image/svg+xml">
+    <title>质押分红 DApp - 排查版</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            background-color: #1a1a2e;
-            color: #ffffff;
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #333;
-        }
-
-        .logo {
-            font-size: 20px;
-            font-weight: bold;
-            color: #ffffff;
-        }
-
-        .connect-btn {
-            background-color: #0066ff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: background-color 0.3s;
-        }
-
-        .connect-btn:disabled {
-            background-color: #666;
-            cursor: not-allowed;
-        }
-
-        .connect-btn:hover:not(:disabled) {
-            background-color: #0052cc;
-        }
-
-        .section {
-            background-color: #16213e;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .section-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 15px;
-            color: #e0e0e0;
-        }
-
-        .info-line {
-            margin-bottom: 10px;
-            color: #b0b0b0;
-        }
-
-        .btn {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 16px;
-            margin-top: 10px;
-            transition: background-color 0.3s;
-        }
-
-        .btn-primary {
-            background-color: #6441a5;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: #533894;
-        }
-
-        .btn-danger {
-            background-color: #e74c3c;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background-color: #c0392b;
-        }
-
-        .btn-outline {
-            background-color: transparent;
-            color: #b0b0b0;
-            border: 1px solid #333;
-        }
-
-        .btn-outline:hover {
-            background-color: #2d3436;
-        }
-
-        .input-group {
-            margin-bottom: 15px;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: #b0b0b0;
-            font-size: 14px;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 12px;
-            background-color: #0f3460;
-            border: 1px solid #333;
-            border-radius: 5px;
-            color: white;
-            font-size: 16px;
-        }
-
-        .input-group input::placeholder {
-            color: #666;
-        }
-
-        .stake-item {
-            background-color: #0f3460;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-
-        .stake-item .stake-info {
-            font-size: 14px;
-            margin-bottom: 5px;
-            color: #b0b0b0;
-        }
-
-        .status {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .status.success {
-            background-color: #27ae60;
-            color: white;
-        }
-
-        .status.error {
-            background-color: #c0392b;
-            color: white;
-        }
-
-        .status.info {
-            background-color: #3498db;
-            color: white;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .network-alert {
-            background-color: #ff9800;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            text-align: center;
-        }
+        body { font-family: Arial; max-width: 600px; margin: 20px auto; padding: 0 20px; }
+        .btn { background: #0066ff; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        .btn:disabled { background: #666; cursor: not-allowed; }
+        .status { margin-top: 15px; padding: 10px; border-radius: 5px; display: none; }
+        .success { background: #d4edda; color: #155724; display: block; }
+        .error { background: #f8d7da; color: #721c24; display: block; }
+        .info { background: #d1ecf1; color: #0c5460; display: block; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="logo">质押 & 分红 (BSC)</div>
-            <button id="connect-btn" class="connect-btn">连接 MetaMask</button>
-        </header>
-
-        <div id="app-content" class="hidden">
-            <div id="network-alert" class="network-alert hidden">
-                警告：当前网络不是 BSC 主网，请切换到 BSC 主网（Chain ID: 56）后重试！
-            </div>
-
-            <div class="section">
-                <div class="info-line">可领取分红: <span id="pending-rewards">-</span> BNB</div>
-            </div>
-
-            <div class="section">
-                <div class="section-title">我的质押条目</div>
-                <button id="refresh-stakes" class="btn btn-outline">刷新质押列表</button>
-                <div id="stakes-list" style="margin-top: 15px;">
-                    <div style="text-align: center; color: #666;">暂无质押记录</div>
-                </div>
-            </div>
-
-            <div class="section">
-                <div class="section-title">操作</div>
-
-                <div style="margin-bottom: 20px;">
-                    <div class="section-title" style="font-size: 16px; margin-bottom: 10px;">领取分红</div>
-                    <button id="claim-rewards" class="btn btn-primary">领取分红</button>
-                </div>
-
-                <div style="margin-bottom: 20px;">
-                    <div class="section-title" style="font-size: 16px; margin-bottom: 10px;">质押代币</div>
-                    <div class="input-group">
-                        <input type="text" id="stake-amount" placeholder="输入质押数量">
-                    </div>
-                    <button id="approve-token" class="btn btn-outline">先批准（ERC20 授权）</button>
-                    <button id="stake-token" class="btn btn-primary">质押</button>
-                </div>
-
-                <div>
-                    <div class="section-title" style="font-size: 16px; margin-bottom: 10px;">取消质押（按索引）</div>
-                    <div class="input-group">
-                        <input type="number" id="unstake-index" placeholder="输入要解除的质押索引（整数）" min="0">
-                    </div>
-                    <button id="unstake-token" class="btn btn-danger">取消质押（按索引）</button>
-                </div>
-            </div>
-
-            <div id="status" class="status" style="display: none;"></div>
-        </div>
-
-        <div id="welcome-content">
-            <div class="section" style="text-align: center; padding: 40px 20px;">
-                <div class="section-title" style="font-size: 24px; margin-bottom: 20px;">欢迎使用质押 & 分红 DApp</div>
-                <p style="margin-bottom: 30px; color: #b0b0b0;">请连接您的 MetaMask 钱包（需切换到 BSC 主网）以开始使用</p>
-                <button id="welcome-connect-btn" class="btn btn-primary">连接 MetaMask</button>
-            </div>
-        </div>
+    <h1>质押分红 DApp（排查版）</h1>
+    <button id="connect-btn" class="btn">连接 MetaMask</button>
+    <div id="status" class="status"></div>
+    <div id="content" class="hidden" style="margin-top: 20px;">
+        <p>已连接账户: <span id="account">-</span></p>
+        <p>当前网络: <span id="network">-</span></p>
     </div>
 
     <script>
-        // ==================== 核心配置（请确认以下信息正确）====================
-        const CONTRACT_ADDRESS = '0xCb5c82879A56006d6eEF2d03391E48ff774919A2'; // 您的合约地址
-        const BSC_MAINNET_CHAIN_ID = '0x38'; // 56 的十六进制表示
-        const BSC_TESTNET_CHAIN_ID = '0x61'; // 97 的十六进制表示
-        const SUPPORTED_CHAIN_IDS = [BSC_MAINNET_CHAIN_ID, BSC_TESTNET_CHAIN_ID]; // 支持的网络
-        const DEFAULT_MEME_TOKEN_ADDRESS = ''; // 可选：手动填写您的 MEME 代币地址（备用）
+        // 核心配置（必须核对！）
+        const CONTRACT_ADDRESS = '0xCb5c82879A56006d6eEF2d03391E48ff774919A2';
+        const BSC_MAINNET_CHAIN_ID = '0x38'; // 56的十六进制
+        const LOG_PREFIX = '[DApp日志]:';
 
-        const ABI = [{"inputs":[{"internalType":"address","name":"_memeToken","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"EnforcedPause","type":"error"},{"inputs":[],"name":"ExpectedPause","type":"error"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"OwnableInvalidOwner","type":"error"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"OwnableUnauthorizedAccount","type":"error"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"DividendDistributed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"admin","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"EmergencyWithdrawBNB","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"admin","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"EmergencyWithdrawMEME","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"newBlocks","type":"uint256"}],"name":"LockBlocksUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"oldToken","type":"address"},{"indexed":false,"internalType":"address","name":"newToken","type":"address"}],"name":"MemeTokenUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"newAmount","type":"uint256"}],"name":"MinLockAmountUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"account","type":"address"}],"name":"Paused","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType
+        // 第一步：页面加载日志（确认JS开始执行）
+        console.log(LOG_PREFIX, '页面开始加载，JS执行启动');
+
+        //  DOM元素获取（尽早获取，避免DOM未加载）
+        const connectBtn = document.getElementById('connect-btn');
+        const statusEl = document.getElementById('status');
+        const contentEl = document.getElementById('content');
+        const accountEl = document.getElementById('account');
+        const networkEl = document.getElementById('network');
+
+        // 第二步：输出DOM获取结果（确认是否拿到按钮）
+        console.log(LOG_PREFIX, 'DOM元素获取结果：');
+        console.log(LOG_PREFIX, 'connectBtn存在？', !!connectBtn);
+        console.log(LOG_PREFIX, 'statusEl存在？', !!statusEl);
+
+        // 第三步：绑定点击事件（用最原始的方式，确保绑定成功）
+        if (connectBtn) {
+            connectBtn.addEventListener('click', async function() {
+                console.log(LOG_PREFIX, '按钮被点击！开始执行连接逻辑');
+                await connectWallet();
+            });
+            console.log(LOG_PREFIX, '点击事件绑定成功');
+        } else {
+            console.error(LOG_PREFIX, 'ERROR: 未找到连接按钮，事件绑定失败');
+            statusEl.textContent = '错误：页面元素加载失败，请刷新页面';
+            statusEl.className = 'status error';
+        }
+
+        // 核心连接逻辑（每步都加日志）
+        async function connectWallet() {
+            try {
+                // 禁用按钮，避免重复点击
+                connectBtn.disabled = true;
+                connectBtn.textContent = '连接中...';
+                statusEl.textContent = '正在连接MetaMask...';
+                statusEl.className = 'status info';
+                console.log(LOG_PREFIX, '禁用按钮，开始检测MetaMask');
+
+                // 第四步：检测MetaMask
+                if (!window.ethereum) {
+                    throw new Error('未检测到MetaMask，请安装后重试');
+                }
+                console.log(LOG_PREFIX, '检测到MetaMask，window.ethereum存在');
+
+                // 第五步：请求授权
+                console.log(LOG_PREFIX, '发起账户授权请求');
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                console.log(LOG_PREFIX, '授权请求返回结果:', accounts);
+
+                if (!accounts || accounts.length === 0) {
+                    throw new Error('用户拒绝了授权');
+                }
+                const account = accounts[0];
+                console.log(LOG_PREFIX, '获取到账户:', account);
+
+                // 第六步：获取当前网络
+                console.log(LOG_PREFIX, '发起网络查询请求');
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                console.log(LOG_PREFIX, '当前网络chainId:', chainId);
+
+                // 第七步：验证网络
+                const isBSC = chainId === BSC_MAINNET_CHAIN_ID;
+                console.log(LOG_PREFIX, '是否为BSC主网？', isBSC);
+
+                // 第八步：更新UI
+                accountEl.textContent = account.substring(0,6) + '...' + account.substring(38);
+                networkEl.textContent = isBSC ? 'BSC主网（56）' : `未知网络（${chainId}）`;
+                contentEl.classList.remove('hidden');
+                statusEl.textContent = isBSC ? '连接成功！' : '连接成功，但网络不是BSC主网，请切换';
+                statusEl.className = 'status success';
+                console.log(LOG_PREFIX, 'UI更新完成，连接流程结束');
+
+            } catch (error) {
+                // 错误日志（输出完整错误信息）
+                console.error(LOG_PREFIX, '连接失败，错误详情:', error);
+                statusEl.textContent = `连接失败: ${error.message}`;
+                statusEl.className = 'status error';
+            } finally {
+                // 恢复按钮状态
+                connectBtn.disabled = false;
+                connectBtn.textContent = '连接 MetaMask';
+                console.log(LOG_PREFIX, '恢复按钮状态，流程结束');
+            }
+        }
+
+        // 额外：监听网络变化（日志）
+        if (window.ethereum) {
+            window.ethereum.on('chainChanged', (chainId) => {
+                console.log(LOG_PREFIX, '网络切换事件触发，新chainId:', chainId);
+                networkEl.textContent = chainId === BSC_MAINNET_CHAIN_ID ? 'BSC主网（56）' : `未知网络（${chainId}）`;
+            });
+            console.log(LOG_PREFIX, '网络变化监听绑定成功');
+        }
+
+        // 最后：输出初始化完成日志
+        console.log(LOG_PREFIX, 'JS初始化完成，等待用户点击');
+    </script>
+</body>
+</html>
+
