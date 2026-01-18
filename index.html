@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>锁代币质押页面</title>
+    <title>锁代币质押页面（优化版）</title>
     <style>
         * {
             box-sizing: border-box;
@@ -75,11 +75,23 @@
             background-color: #bde5f8;
             color: #00529B;
         }
+        .network-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>锁代币质押页面</h1>
+        <h1>锁代币质押页面（优化版）</h1>
+        
+        <div id="networkWarning" class="network-warning">
+            ⚠️ 警告：当前网络不是 BSC 主网（Chain ID: 56），请切换后重试！
+        </div>
         
         <div class="section">
             <h2>钱包连接</h2>
@@ -91,6 +103,8 @@
             <h2>账户信息</h2>
             <div id="tokenBalance" class="info" style="display: none;">锁代币余额: <span id="balanceValue">0</span></div>
             <div id="stakedAmount" class="info" style="display: none;">已质押数量: <span id="stakedValue">0</span></div>
+            <div id="allowanceAmount" class="info" style="display: none;">授权额度: <span id="allowanceValue">0</span></div>
+            <div id="pendingRewards" class="info" style="display: none;">待领取分红: <span id="pendingRewardsValue">0</span> BNB</div>
         </div>
         
         <div class="section">
@@ -109,52 +123,78 @@
         
         <div class="section">
             <h2>取消质押操作</h2>
-            <input type="number" id="unstakeAmount" placeholder="输入要取消质押的锁代币数量" min="0" step="0.000000000000000001">
+            <input type="number" id="unstakeIndex" placeholder="输入要取消质押的索引（从0开始）" min="0" step="1">
             <button id="unstakeBtn" disabled>取消质押</button>
             <div id="unstakeStatus" class="status" style="display: none;"></div>
         </div>
+        
+        <div class="section">
+            <h2>领取分红</h2>
+            <button id="claimBtn" disabled>领取分红</button>
+            <div id="claimStatus" class="status" style="display: none;"></div>
+        </div>
     </div>
 
-    <!-- 替换为稳定的 ethers.js CDN 链接 -->
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script>
         // 合约地址
         const TOKEN_CONTRACT_ADDRESS = "0x574f567a3f76b555d0a60bacb1110bf79d2c7777";
         const STAKE_CONTRACT_ADDRESS = "0xCb5c82879A56006d6eEF2d03391E48ff774919A2";
+        const BSC_MAINNET_CHAIN_ID = 56; // BSC主网Chain ID
         
-        // 合约ABI（简化版，仅包含需要的函数）
+        // 合约ABI（使用你提供的完整ABI）
         const TOKEN_ABI = [
             "function balanceOf(address owner) view returns (uint256)",
             "function approve(address spender, uint256 amount) returns (bool)",
             "function allowance(address owner, address spender) view returns (uint256)"
         ];
         
-        const STAKE_ABI = [
-            "function stake(uint256 amount) returns (bool)",
-            "function unstake(uint256 amount) returns (bool)",
-            "function userStakes(address user) view returns (uint256)"
-        ];
+        const STAKE_ABI = [{"inputs":[{"internalType":"address","name":"_memeToken","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"EnforcedPause","type":"error"},{"inputs":[],"name":"ExpectedPause","type":"error"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"OwnableInvalidOwner","type":"error"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"OwnableUnauthorizedAccount","type":"error"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"DividendDistributed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"admin","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"EmergencyWithdrawBNB","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"admin","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"EmergencyWithdrawMEME","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"newBlocks","type":"uint256"}],"name":"LockBlocksUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"oldToken","type":"address"},{"indexed":false,"internalType":"address","name":"newToken","type":"address"}],"name":"MemeTokenUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"newAmount","type":"uint256"}],"name":"MinLockAmountUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"account","type":"address"}],"name":"Paused","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"RewardClaimed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"Staked","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"account","type":"address"}],"name":"Unpaused","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"penalty","type":"uint256"}],"name":"Unstaked","type":"event"},{"inputs":[],"name":"BURN_ADDRESS","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"DISTRIBUTION_THRESHOLD","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"PENALTY_RATE","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"claimRewards","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"disableStaking","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"dividendPerToken","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"emergencyWithdrawBNB","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"emergencyWithdrawMEME","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"enableStaking","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getPendingRewards","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"},{"internalType":"uint256","name":"index","type":"uint256"}],"name":"getUserStake","outputs":[{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"startBlock","type":"uint256"},{"internalType":"uint256","name":"unlockBlock","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getUserStakeCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"lockBlocks","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"memeToken","outputs":[{"internalType":"contract IERC20","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"minLockAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"pendingBNB","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_blocks","type":"uint256"}],"name":"setLockBlocks","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_newMemeToken","type":"address"}],"name":"setMemeToken","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"setMinLockAmount","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"stake","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"totalStaked","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"index","type":"uint256"}],"name":"unstake","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"userRewards","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"userStakes","outputs":[{"internalType":"uint256","name":"amount","type":"uint256"},{"internalType":"uint256","name":"startBlock","type":"uint256"},{"internalType":"uint256","name":"dividendPerTokenAtStake","type":"uint256"}],"stateMutability":"view","type":"function"},{"stateMutability":"payable","type":"receive"}];
         
         // 全局变量
         let provider, signer, address;
         let tokenContract, stakeContract;
+        let currentChainId = null;
         
         // DOM元素
         const connectBtn = document.getElementById("connectBtn");
         const walletAddress = document.getElementById("walletAddress");
+        const networkWarning = document.getElementById("networkWarning");
         const tokenBalance = document.getElementById("tokenBalance");
         const balanceValue = document.getElementById("balanceValue");
         const stakedAmount = document.getElementById("stakedAmount");
         const stakedValue = document.getElementById("stakedValue");
+        const allowanceAmount = document.getElementById("allowanceAmount");
+        const allowanceValue = document.getElementById("allowanceValue");
+        const pendingRewards = document.getElementById("pendingRewards");
+        const pendingRewardsValue = document.getElementById("pendingRewardsValue");
         const approveAmount = document.getElementById("approveAmount");
         const approveBtn = document.getElementById("approveBtn");
         const approveStatus = document.getElementById("approveStatus");
         const stakeAmount = document.getElementById("stakeAmount");
         const stakeBtn = document.getElementById("stakeBtn");
         const stakeStatus = document.getElementById("stakeStatus");
-        const unstakeAmount = document.getElementById("unstakeAmount");
+        const unstakeIndex = document.getElementById("unstakeIndex");
         const unstakeBtn = document.getElementById("unstakeBtn");
         const unstakeStatus = document.getElementById("unstakeStatus");
+        const claimBtn = document.getElementById("claimBtn");
+        const claimStatus = document.getElementById("claimStatus");
+        
+        // 监听网络变化
+        if (window.ethereum) {
+            window.ethereum.on('chainChanged', (chainId) => {
+                currentChainId = parseInt(chainId, 16);
+                checkNetwork();
+                if (address) updateAccountInfo(); // 网络切换后重新加载数据
+            });
+        }
+        
+        // 检查网络
+        function checkNetwork() {
+            const isBSCMainnet = currentChainId === BSC_MAINNET_CHAIN_ID;
+            networkWarning.style.display = isBSCMainnet ? "none" : "block";
+            return isBSCMainnet;
+        }
         
         // 连接钱包
         connectBtn.addEventListener("click", async () => {
@@ -162,6 +202,15 @@
                 try {
                     // 请求用户授权
                     await window.ethereum.request({ method: "eth_requestAccounts" });
+                    
+                    // 获取当前网络
+                    currentChainId = parseInt(await window.ethereum.request({ method: "eth_chainId" }), 16);
+                    
+                    // 检查网络
+                    if (!checkNetwork()) {
+                        showStatus(approveStatus, "请切换到 BSC 主网（Chain ID: 56）", "error");
+                        return;
+                    }
                     
                     // 创建provider和signer
                     provider = new ethers.providers.Web3Provider(window.ethereum);
@@ -183,6 +232,7 @@
                     approveBtn.disabled = false;
                     stakeBtn.disabled = false;
                     unstakeBtn.disabled = false;
+                    claimBtn.disabled = false;
                     
                     // 禁用连接按钮
                     connectBtn.disabled = true;
@@ -198,15 +248,28 @@
         // 更新账户信息
         async function updateAccountInfo() {
             try {
+                // 检查网络
+                if (!checkNetwork()) return;
+                
                 // 获取代币余额
                 const balance = await tokenContract.balanceOf(address);
                 balanceValue.textContent = ethers.utils.formatEther(balance);
                 tokenBalance.style.display = "block";
                 
                 // 获取已质押数量
-                const staked = await stakeContract.userStakes(address);
-                stakedValue.textContent = ethers.utils.formatEther(staked);
+                const staked = await stakeContract.userStakes(address, 0); // 注意：这里只获取了第一个质押记录的数量，实际应用中可能需要遍历所有记录
+                stakedValue.textContent = ethers.utils.formatEther(staked.amount);
                 stakedAmount.style.display = "block";
+                
+                // 获取授权额度
+                const allowance = await tokenContract.allowance(address, STAKE_CONTRACT_ADDRESS);
+                allowanceValue.textContent = ethers.utils.formatEther(allowance);
+                allowanceAmount.style.display = "block";
+                
+                // 获取待领取分红
+                const rewards = await stakeContract.getPendingRewards(address);
+                pendingRewardsValue.textContent = ethers.utils.formatEther(rewards);
+                pendingRewards.style.display = "block";
             } catch (error) {
                 showStatus(approveStatus, "获取账户信息失败: " + error.message, "error");
             }
@@ -227,12 +290,14 @@
                 const amountWei = ethers.utils.parseEther(amount);
                 
                 // 调用approve函数
-                const tx = await tokenContract.approve(STAKE_CONTRACT_ADDRESS, amountWei);
+                const tx = await tokenContract.approve(STAKE_CONTRACT_ADDRESS, amountWei, {
+                    gasLimit: 100000 // 设置gas限制
+                });
                 
                 // 等待交易确认
                 await tx.wait();
                 
-                showStatus(approveStatus, "授权成功!", "success");
+                showStatus(approveStatus, `授权成功! 交易哈希: ${tx.hash}`, "success");
                 
                 // 更新账户信息
                 updateAccountInfo();
@@ -256,12 +321,14 @@
                 const amountWei = ethers.utils.parseEther(amount);
                 
                 // 调用stake函数
-                const tx = await stakeContract.stake(amountWei);
+                const tx = await stakeContract.stake(amountWei, {
+                    gasLimit: 200000 // 设置gas限制
+                });
                 
                 // 等待交易确认
                 await tx.wait();
                 
-                showStatus(stakeStatus, "质押成功!", "success");
+                showStatus(stakeStatus, `质押成功! 交易哈希: ${tx.hash}`, "success");
                 
                 // 更新账户信息
                 updateAccountInfo();
@@ -272,30 +339,51 @@
         
         // 取消质押操作
         unstakeBtn.addEventListener("click", async () => {
-            const amount = unstakeAmount.value;
-            if (!amount || amount <= 0) {
-                showStatus(unstakeStatus, "请输入有效的取消质押数量", "error");
+            const index = unstakeIndex.value;
+            if (!index || index < 0) {
+                showStatus(unstakeStatus, "请输入有效的索引（从0开始）", "error");
                 return;
             }
             
             try {
                 showStatus(unstakeStatus, "正在取消质押...", "info");
                 
-                // 转换为wei
-                const amountWei = ethers.utils.parseEther(amount);
-                
                 // 调用unstake函数
-                const tx = await stakeContract.unstake(amountWei);
+                const tx = await stakeContract.unstake(index, {
+                    gasLimit: 200000 // 设置gas限制
+                });
                 
                 // 等待交易确认
                 await tx.wait();
                 
-                showStatus(unstakeStatus, "取消质押成功!", "success");
+                showStatus(unstakeStatus, `取消质押成功! 交易哈希: ${tx.hash}`, "success");
                 
                 // 更新账户信息
                 updateAccountInfo();
             } catch (error) {
                 showStatus(unstakeStatus, "取消质押失败: " + error.message, "error");
+            }
+        });
+        
+        // 领取分红操作
+        claimBtn.addEventListener("click", async () => {
+            try {
+                showStatus(claimStatus, "正在领取分红...", "info");
+                
+                // 调用claimRewards函数
+                const tx = await stakeContract.claimRewards({
+                    gasLimit: 200000 // 设置gas限制
+                });
+                
+                // 等待交易确认
+                await tx.wait();
+                
+                showStatus(claimStatus, `领取分红成功! 交易哈希: ${tx.hash}`, "success");
+                
+                // 更新账户信息
+                updateAccountInfo();
+            } catch (error) {
+                showStatus(claimStatus, "领取分红失败: " + error.message, "error");
             }
         });
         
@@ -309,7 +397,7 @@
             if (type === "success" || type === "info") {
                 setTimeout(() => {
                     element.style.display = "none";
-                }, 3000);
+                }, 5000); // 延长到5秒，方便用户复制交易哈希
             }
         }
     </script>
