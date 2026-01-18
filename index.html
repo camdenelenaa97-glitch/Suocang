@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BSC锁仓解锁工具（优化版）</title>
+    <title>BSC锁仓解锁工具（极简版）</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text x=%220%22 y=%2290%22 font-size=%2290%22>🔓</text></svg>" type="image/svg+xml">
     <style>
         * {
@@ -77,19 +77,6 @@
 
         .info-line {
             margin-bottom: 10px;
-            color: #b0b0b0;
-        }
-
-        .stake-item {
-            background-color: #0f360;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-
-        .stake-item .stake-info {
-            font-size: 14px;
-            margin-bottom: 5px;
             color: #b0b0b0;
         }
 
@@ -196,7 +183,7 @@
 <body>
     <div class="container">
         <header>
-            <div class="logo">🔓 BSC锁仓解锁工具（优化版）</div>
+            <div class="logo">🔓 BSC锁仓解锁工具（极简版）</div>
             <button id="connect-btn" class="connect-btn">连接钱包</button>
         </header>
 
@@ -206,21 +193,9 @@
                 <div class="section-title">账户信息</div>
                 <div class="info-line">已连接账户: <span id="connected-account">-</span></div>
                 <div class="info-line">当前网络: <span id="current-network">-</span></div>
-                <div class="info-line">锁仓记录总数: <span id="stake-count">-</span></div>
                 <div class="warning hidden" id="network-warning">
                     ⚠️ 警告：当前网络不是 BSC 主网，请切换到 BSC 主网（Chain ID: 56）后重试！
                 </div>
-            </div>
-
-            <!-- 锁仓记录 -->
-            <div class="section">
-                <div class="section-title">我的锁仓记录</div>
-                <button id="refresh-stakes" class="btn btn-outline">刷新锁仓记录</button>
-                <div id="stakes-list" style="margin-top: 15px;">
-                    <div style="text-align: center; color: #666;">暂无锁仓记录</div>
-                </div>
-                <div class="note">提示：每个锁仓记录对应一个索引，解锁时需要输入对应的索引</div>
-                <div class="note">提示：如果有3笔锁仓，需要分3次解锁，依次输入0、1、2</div>
             </div>
 
             <!-- 解锁操作 -->
@@ -231,6 +206,7 @@
                     <input type="number" id="unstake-index" placeholder="例如：0（第一个锁仓记录）" min="0">
                 </div>
                 <button id="unstake-btn" class="btn btn-primary">🔓 立即解锁</button>
+                <div class="note">提示：如果有3笔锁仓，需要分3次解锁，依次输入0、1、2</div>
                 <div class="note">提示：解锁后，对应的锁仓记录会从列表中移除</div>
                 <div class="note">提示：如果解锁失败，可能是索引无效、未到解锁时间或gas不足</div>
             </div>
@@ -256,38 +232,166 @@
         // ==================== 核心配置 ====================
         const CONTRACT_ADDRESS = '0xCb5c82879A56006d6eEF2d03391E48ff774919A2';
         const BSC_MAINNET_CHAIN_ID = '0x38'; // 56的十六进制
-        const BSC_TESTNET_CHAIN_ID = '0x61'; // 97的十六进制
         let currentAccount = null;
         let currentChainId = null;
-        let stakeCount = 0; // 锁仓记录总数
 
-        // ==================== 工具函数 ====================
-        // 生成函数签名哈希（关键：使用BscScan上实际显示的函数签名）
-        async function getFunctionSignatureHash(functionName, params) {
-            const funcStr = `${functionName}(${params.join(',')})`;
-            const encoder = new TextEncoder();
-            const hash = await crypto.subtle.digest('SHA-256', encoder.encode(funcStr));
-            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 8);
-        }
+        // ==================== 关键优化：直接使用BscScan上的函数签名 ====================
+        // 1. unstake 函数签名（BscScan上显示：0x2e17de78）
+        const UNSTAKE_FUNCTION_SIGNATURE = '0x2e17de78';
 
-        // 编码地址参数
-        function encodeAddress(address) {
-            return address.replace('0x', '').padStart(64, '0');
-        }
-
-        // 编码uint256参数
+        // 2. 编码uint256参数（索引）
         function encodeUint256(value) {
             return BigInt(value).toString(16).padStart(64, '0');
         }
 
-        // 编码函数调用数据
-        async function encodeFunctionCall(functionName, params, paramTypes) {
-            const sigHash = await getFunctionSignatureHash(functionName, paramTypes);
-            let data = '';
-            
-            for (let i = 0; i < params.length; i++) {
-                const param = params[i];
-                const type = paramTypes[i];
-                
-                if (type === 'address') {
-                    data += encodeAddress
+        // 3. 编码解锁交易数据（直接使用已知的函数签名）
+        function encodeUnstakeData(index) {
+            const encodedIndex = encodeUint256(index);
+            return `${UNSTAKE_FUNCTION_SIGNATURE}${encodedIndex}`;
+        }
+
+        // ==================== DOM元素 ====================
+        const domElements = {
+            connectBtn: document.getElementById('connect-btn'),
+            welcomeConnectBtn: document.getElementById('welcome-connect-btn'),
+            appContent: document.getElementById('app-content'),
+            welcomeContent: document.getElementById('welcome-content'),
+            networkWarning: document.getElementById('network-warning'),
+            connectedAccountEl: document.getElementById('connected-account'),
+            currentNetworkEl: document.getElementById('current-network'),
+            unstakeIndexInput: document.getElementById('unstake-index'),
+            unstakeBtn: document.getElementById('unstake-btn'),
+            statusEl: document.getElementById('status')
+        };
+
+        // ==================== 事件绑定 ====================
+        if (domElements.connectBtn) domElements.connectBtn.addEventListener('click', connectWallet);
+        if (domElements.welcomeConnectBtn) domElements.welcomeConnectBtn.addEventListener('click', connectWallet);
+        if (domElements.unstakeBtn) domElements.unstakeBtn.addEventListener('click', unstake);
+
+        // 监听网络变化
+        if (window.ethereum) {
+            window.ethereum.on('chainChanged', (chainId) => {
+                currentChainId = chainId;
+                checkNetwork();
+                updateNetworkDisplay();
+            });
+        }
+
+        // ==================== 核心逻辑 ====================
+        // 连接钱包（使用之前成功的连接逻辑）
+        async function connectWallet() {
+            const { connectBtn, welcomeConnectBtn, statusEl } = domElements;
+
+            try {
+                // 禁用按钮
+                if (connectBtn) { connectBtn.disabled = true; connectBtn.textContent = '连接中...'; }
+                if (welcomeConnectBtn) { welcomeConnectBtn.disabled = true; welcomeConnectBtn.textContent = '连接中...'; }
+                if (statusEl) { statusEl.textContent = '正在连接MetaMask...'; statusEl.className = 'status info'; }
+
+                // 检测MetaMask
+                if (!window.ethereum) {
+                    throw new Error('未检测到MetaMask，请安装后重试');
+                }
+
+                // 请求授权
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                if (!accounts || accounts.length === 0) throw new Error('用户拒绝了授权');
+                currentAccount = accounts[0];
+
+                // 获取网络
+                currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+
+                // 检查网络
+                const isSupported = checkNetwork();
+                if (!isSupported) {
+                    throw new Error('当前网络不是BSC主网，请切换到BSC主网（Chain ID: 56）');
+                }
+
+                // 更新UI
+                updateAccountDisplay();
+                updateNetworkDisplay();
+                if (domElements.appContent) domElements.appContent.classList.remove('hidden');
+                if (domElements.welcomeContent) domElements.welcomeContent.classList.add('hidden');
+                if (statusEl) { statusEl.textContent = '连接成功！'; statusEl.className = 'status success'; }
+
+            } catch (error) {
+                console.error('连接失败:', error);
+                if (statusEl) { statusEl.textContent = `连接失败: ${error.message}`; statusEl.className = 'status error'; }
+            } finally {
+                // 恢复按钮
+                if (connectBtn) { connectBtn.disabled = false; connectBtn.textContent = '连接钱包'; }
+                if (welcomeConnectBtn) { welcomeConnectBtn.disabled = false; welcomeConnectBtn.textContent = '连接钱包'; }
+            }
+        }
+
+        // 检查网络
+        function checkNetwork() {
+            const isSupported = currentChainId === BSC_MAINNET_CHAIN_ID;
+            if (domElements.networkWarning) {
+                domElements.networkWarning.classList.toggle('hidden', isSupported);
+            }
+            return isSupported;
+        }
+
+        // 解锁操作（直接使用BscScan上的函数签名）
+        async function unstake() {
+            const { unstakeIndexInput, statusEl } = domElements;
+            try {
+                if (!checkNetwork()) throw new Error('网络不支持');
+                if (!currentAccount) throw new Error('未连接账户');
+
+                const index = parseInt(unstakeIndexInput.value.trim());
+                if (isNaN(index) || index < 0) throw new Error('请输入有效的索引（从0开始）');
+
+                if (statusEl) { statusEl.textContent = '正在解锁...'; statusEl.className = 'status info'; }
+
+                // 编码解锁交易数据（直接使用已知的函数签名）
+                const unstakeData = encodeUnstakeData(index);
+
+                // 发起解锁交易
+                const txHash = await window.ethereum.request({
+                    method: 'eth_sendTransaction',
+                    params: [{
+                        to: CONTRACT_ADDRESS,
+                        data: unstakeData,
+                        from: currentAccount,
+                        gasLimit: '0x500000' // 增加gas限制
+                    }]
+                });
+
+                if (statusEl) { 
+                    statusEl.textContent = `🔓 解锁交易已发送: ${txHash}（可在BscScan查询）`; 
+                    statusEl.className = 'status success'; 
+                }
+
+                // 等待交易确认后清空输入框
+                setTimeout(() => {
+                    if (unstakeIndexInput) unstakeIndexInput.value = '';
+                }, 8000);
+            } catch (error) {
+                console.error('解锁失败:', error);
+                let errorMsg = error.message;
+                if (errorMsg.includes('no transaction hash')) {
+                    errorMsg = '交易无哈希：可能是索引无效、未到解锁时间或gas不足';
+                }
+                if (statusEl) { statusEl.textContent = `解锁失败: ${errorMsg}`; statusEl.className = 'status error'; }
+            }
+        }
+
+        // ==================== UI更新函数 ====================
+        function updateAccountDisplay() {
+            if (domElements.connectedAccountEl && currentAccount) {
+                domElements.connectedAccountEl.textContent = `${currentAccount.substring(0,6)}...${currentAccount.substring(38)}`;
+            }
+        }
+
+        function updateNetworkDisplay() {
+            if (domElements.currentNetworkEl && currentChainId) {
+                const networkName = currentChainId === BSC_MAINNET_CHAIN_ID ? 'BSC主网（56）' : `未知网络（${currentChainId}）`;
+                domElements.currentNetworkEl.textContent = networkName;
+            }
+        }
+    </script>
+</body>
+</html>
