@@ -2,57 +2,292 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>合约连通性测试</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BSC锁仓解锁工具（优化版）</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text x=%220%22 y=%2290%22 font-size=%2290%22>🔓</text></svg>" type="image/svg+xml">
     <style>
-        body { font-family: Arial; padding: 20px; }
-        .btn { padding: 10px 20px; background: #0066ff; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .status { margin-top: 15px; padding: 10px; border-radius: 5px; }
-        .success { background: #d4edda; color: #155724; }
-        .error { background: #f8d7da; color: #721c24; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #1a1a2e;
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .connect-btn {
+            background-color: #0066ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+
+        .connect-btn:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+
+        .connect-btn:hover:not(:disabled) {
+            background-color: #0052cc;
+        }
+
+        .section {
+            background-color: #16213e;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #e0e0e0;
+        }
+
+        .info-line {
+            margin-bottom: 10px;
+            color: #b0b0b0;
+        }
+
+        .stake-item {
+            background-color: #0f360;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .stake-item .stake-info {
+            font-size: 14px;
+            margin-bottom: 5px;
+            color: #b0b0b0;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #c0392b;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: #b0b0b0;
+            border: 1px solid #333;
+        }
+
+        .btn-outline:hover {
+            background-color: #2d3436;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #b0b0b0;
+            font-size: 14px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            background-color: #0f360;
+            border: 1px solid #333;
+            border-radius: 5px;
+            color: white;
+            font-size: 16px;
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .status.success {
+            background-color: #27ae60;
+            color: white;
+            display: block;
+        }
+
+        .status.error {
+            background-color: #c0392b;
+            color: white;
+            display: block;
+        }
+
+        .status.info {
+            background-color: #3498db;
+            color: white;
+            display: block;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .warning {
+            background-color: #e67e22;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .note {
+            font-size: 13px;
+            color: #888;
+            margin-top: 5px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
-    <h1>合约连通性测试（BSC主网）</h1>
-    <p>合约地址：<input id="contract-address" value="0xCb5c82879A56006d6eEF2d03391E48ff774919A2" style="width: 500px;"></p>
-    <button id="test-btn" class="btn">测试合约连通性</button>
-    <div id="status" class="status"></div>
+    <div class="container">
+        <header>
+            <div class="logo">🔓 BSC锁仓解锁工具（优化版）</div>
+            <button id="connect-btn" class="connect-btn">连接钱包</button>
+        </header>
+
+        <div id="app-content" class="hidden">
+            <!-- 账户信息 -->
+            <div class="section">
+                <div class="section-title">账户信息</div>
+                <div class="info-line">已连接账户: <span id="connected-account">-</span></div>
+                <div class="info-line">当前网络: <span id="current-network">-</span></div>
+                <div class="info-line">锁仓记录总数: <span id="stake-count">-</span></div>
+                <div class="warning hidden" id="network-warning">
+                    ⚠️ 警告：当前网络不是 BSC 主网，请切换到 BSC 主网（Chain ID: 56）后重试！
+                </div>
+            </div>
+
+            <!-- 锁仓记录 -->
+            <div class="section">
+                <div class="section-title">我的锁仓记录</div>
+                <button id="refresh-stakes" class="btn btn-outline">刷新锁仓记录</button>
+                <div id="stakes-list" style="margin-top: 15px;">
+                    <div style="text-align: center; color: #666;">暂无锁仓记录</div>
+                </div>
+                <div class="note">提示：每个锁仓记录对应一个索引，解锁时需要输入对应的索引</div>
+                <div class="note">提示：如果有3笔锁仓，需要分3次解锁，依次输入0、1、2</div>
+            </div>
+
+            <!-- 解锁操作 -->
+            <div class="section">
+                <div class="section-title">解锁操作</div>
+                <div class="input-group">
+                    <label for="unstake-index">输入要解锁的索引（从0开始）</label>
+                    <input type="number" id="unstake-index" placeholder="例如：0（第一个锁仓记录）" min="0">
+                </div>
+                <button id="unstake-btn" class="btn btn-primary">🔓 立即解锁</button>
+                <div class="note">提示：解锁后，对应的锁仓记录会从列表中移除</div>
+                <div class="note">提示：如果解锁失败，可能是索引无效、未到解锁时间或gas不足</div>
+            </div>
+
+            <!-- 状态提示 -->
+            <div id="status" class="status"></div>
+        </div>
+
+        <!-- 未连接钱包时的欢迎页 -->
+        <div id="welcome-content">
+            <div class="section" style="text-align: center; padding: 50px 20px;">
+                <div class="section-title" style="font-size: 24px; margin-bottom: 20px;">欢迎使用 BSC 锁仓解锁工具</div>
+                <p style="margin-bottom: 30px; color: #b0b0b0; line-height: 1.6;">
+                    请连接您的 MetaMask 钱包<br>
+                    并切换至 <strong>BSC 主网（Chain ID: 56）</strong> 开始使用
+                </p>
+                <button id="welcome-connect-btn" class="connect-btn">连接钱包</button>
+            </div>
+        </div>
+    </div>
 
     <script>
-        const CONTRACT_ADDRESS = document.getElementById('contract-address').value;
-        const TEST_ABI = [
-            { "inputs": [], "name": "paused", "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }], "stateMutability": "view", "type": "function" }
-        ];
+        // ==================== 核心配置 ====================
+        const CONTRACT_ADDRESS = '0xCb5c82879A56006d6eEF2d03391E48ff774919A2';
+        const BSC_MAINNET_CHAIN_ID = '0x38'; // 56的十六进制
+        const BSC_TESTNET_CHAIN_ID = '0x61'; // 97的十六进制
+        let currentAccount = null;
+        let currentChainId = null;
+        let stakeCount = 0; // 锁仓记录总数
 
-        document.getElementById('test-btn').addEventListener('click', async () => {
-            const statusEl = document.getElementById('status');
-            statusEl.textContent = '测试中...';
-            statusEl.className = 'status';
+        // ==================== 工具函数 ====================
+        // 生成函数签名哈希（关键：使用BscScan上实际显示的函数签名）
+        async function getFunctionSignatureHash(functionName, params) {
+            const funcStr = `${functionName}(${params.join(',')})`;
+            const encoder = new TextEncoder();
+            const hash = await crypto.subtle.digest('SHA-256', encoder.encode(funcStr));
+            return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 8);
+        }
 
-            try {
-                if (!window.ethereum) throw new Error('未检测到MetaMask');
-                await window.ethereum.request({ method: 'eth_requestAccounts' });
+        // 编码地址参数
+        function encodeAddress(address) {
+            return address.replace('0x', '').padStart(64, '0');
+        }
+
+        // 编码uint256参数
+        function encodeUint256(value) {
+            return BigInt(value).toString(16).padStart(64, '0');
+        }
+
+        // 编码函数调用数据
+        async function encodeFunctionCall(functionName, params, paramTypes) {
+            const sigHash = await getFunctionSignatureHash(functionName, paramTypes);
+            let data = '';
+            
+            for (let i = 0; i < params.length; i++) {
+                const param = params[i];
+                const type = paramTypes[i];
                 
-                // 编码paused函数调用
-                const funcStr = 'paused()';
-                const encoder = new TextEncoder();
-                const hash = await crypto.subtle.digest('SHA-256', encoder.encode(funcStr));
-                const sigHash = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 8);
-                const data = `0x${sigHash}`;
-
-                // 调用合约
-                const result = await window.ethereum.request({
-                    method: 'eth_call',
-                    params: [{ to: CONTRACT_ADDRESS, data: data }, 'latest']
-                });
-
-                statusEl.textContent = `测试成功！合约暂停状态：${result === '0x0000000000000000000000000000000000000000000000000000000000000001' ? '是' : '否'}`;
-                statusEl.className = 'status success';
-            } catch (error) {
-                statusEl.textContent = `测试失败：${error.message}（错误码：${error.code || '无'}）`;
-                statusEl.className = 'status error';
-                console.error('测试失败详情:', error);
-            }
-        });
-    </script>
-</body>
-</html>
+                if (type === 'address') {
+                    data += encodeAddress
